@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useMutation } from '@apollo/client';
 import { LOGIN } from '@/lib/graphql/mutations';
 import { authTokenVar, currentUserVar } from '@/lib/apollo-client';
-import { Sprout, Lock, Mail, ArrowRight } from 'lucide-react';
+import { Sprout, Lock, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -35,8 +35,9 @@ export default function LoginPage() {
         toast.success(`Welcome back, ${user.name}!`);
         router.push('/marketplace');
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Login failed. Please check credentials.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Login failed. Please check credentials.';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -139,7 +140,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-xs text-[var(--color-text-secondary)]">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link href="/register" className="font-semibold text-[var(--color-primary)] hover:underline">
             Register here
           </Link>

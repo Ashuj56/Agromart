@@ -10,9 +10,6 @@ import {
   Tractor,
   Layers,
   ArrowRight,
-  ShieldCheck,
-  TrendingUp,
-  Truck,
   Sparkles,
 } from 'lucide-react';
 
@@ -28,7 +25,7 @@ export default function HomePage() {
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/80 border border-[var(--color-primary)]/20 text-xs font-semibold text-[var(--color-primary)] shadow-xs mb-4">
               <Sparkles className="w-3.5 h-3.5 text-[var(--color-accent)]" />
-              India's Next-Gen Agricultural Commerce Platform
+              India&apos;s Next-Gen Agricultural Commerce Platform
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold font-heading text-[var(--color-text-primary)] tracking-tight leading-tight">

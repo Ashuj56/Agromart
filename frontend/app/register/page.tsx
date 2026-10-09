@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useMutation } from '@apollo/client';
 import { REGISTER } from '@/lib/graphql/mutations';
 import { authTokenVar, currentUserVar } from '@/lib/apollo-client';
-import { Sprout, Lock, Mail, User, MapPin } from 'lucide-react';
+import { Sprout, Lock, Mail, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function RegisterPage() {
@@ -15,7 +15,6 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'BUYER' | 'SELLER' | 'BOTH'>('BUYER');
-  const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
 
   const [register] = useMutation(REGISTER);
@@ -38,8 +37,9 @@ export default function RegisterPage() {
         toast.success(`Account created! Welcome, ${user.name}!`);
         router.push('/marketplace');
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Registration failed. Please check inputs.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Registration failed. Please check inputs.';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

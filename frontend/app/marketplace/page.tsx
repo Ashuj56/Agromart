@@ -6,7 +6,7 @@ import { useQuery } from '@apollo/client';
 import { GET_PRODUCTS } from '@/lib/graphql/queries';
 import { ProductCard } from '@/components/product/ProductCard';
 import { Product, Category } from '@/types';
-import { Search, Filter, Loader2, Sparkles, Tractor, Sprout, ShieldAlert } from 'lucide-react';
+import { Search, Loader2, Sparkles, Tractor, Sprout, ShieldAlert } from 'lucide-react';
 
 function MarketplaceContent() {
   const router = useRouter();

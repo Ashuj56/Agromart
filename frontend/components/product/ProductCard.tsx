@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Product } from '@/types';
 import { formatPrice } from '@/lib/utils';
-import { MapPin, Star, Tag, Clock } from 'lucide-react';
+import { MapPin, Star, Clock } from 'lucide-react';
 
 export function ProductCard({ product }: { product: Product }) {
   const imageUrl =

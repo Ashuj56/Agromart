@@ -1,11 +1,12 @@
 import { ApolloClient, InMemoryCache, createHttpLink, makeVar } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
+import { User } from '@/types';
 
 export const authTokenVar = makeVar<string | null>(
   typeof window !== 'undefined' ? localStorage.getItem('agromart_token') : null
 );
 
-export const currentUserVar = makeVar<any | null>(
+export const currentUserVar = makeVar<User | null>(
   typeof window !== 'undefined'
     ? (() => {
         try {
