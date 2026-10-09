@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useReactiveVar } from '@apollo/client';
 import { currentUserVar, authTokenVar } from '@/lib/apollo-client';
@@ -45,9 +46,16 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
 
         {/* ── Brand Logo ── */}
-        <Link href="/" className="flex items-center gap-2 group" onClick={() => setMenuOpen(false)}>
-          <div className="w-9 h-9 rounded-lg bg-[var(--color-primary-pale)] flex items-center justify-center text-[var(--color-primary)] group-hover:scale-105 transition-transform">
-            <Sprout className="w-5 h-5" />
+        <Link href="/" className="flex items-center gap-2.5 group" onClick={() => setMenuOpen(false)}>
+          <div className="w-10 h-10 rounded-xl overflow-hidden border border-[var(--color-primary)]/20 shadow-xs flex items-center justify-center bg-white group-hover:scale-105 transition-transform shrink-0">
+            <Image
+              src="/logo.jpg"
+              alt="AgroMart Logo"
+              width={40}
+              height={40}
+              className="w-full h-full object-cover"
+              priority
+            />
           </div>
           <div className="flex flex-col">
             <span className="font-heading text-lg font-bold text-[var(--color-primary)] tracking-tight leading-none">
