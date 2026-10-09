@@ -15,6 +15,9 @@ RUN npx prisma generate && npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
+# Prisma client requires libssl at runtime — Alpine doesn't include it by default
+RUN apk add --no-cache openssl
+
 ENV NODE_ENV=production
 
 # Install only production dependencies, then clean cache in a single layer
