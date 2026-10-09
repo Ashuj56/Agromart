@@ -1,4 +1,4 @@
-﻿apiVersion: apps/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: agromart-frontend
@@ -19,7 +19,7 @@ spec:
         - name: frontend
           # Replace with your ECR URI in CI/CD, e.g. <account_id>.dkr.ecr.ap-south-1.amazonaws.com/agromart-frontend:v1.0.0
           image: agromart-frontend:v1.0.0
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
               name: http
@@ -33,7 +33,6 @@ spec:
           envFrom:
             - secretRef:
                 name: agromart-frontend-secrets
-                optional: true
           resources:
             requests:
               cpu: "250m"

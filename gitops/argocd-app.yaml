@@ -1,4 +1,4 @@
-﻿apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: agromart
@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/your-org/agromart.git
+    repoURL: https://github.com/Ashuj56/Agromart # ← replace with your GitHub URL
     targetRevision: main
     path: gitops
   destination:
@@ -18,5 +18,12 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 2m
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true

@@ -1,0 +1,93 @@
+name: Build, Scan & Push to ECR
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+
+env:
+  AWS_REGION: us-east-1
+  ECR_BACKEND:  <account_id>.dkr.ecr.us-east-1.amazonaws.com/agromart-backend
+  ECR_FRONTEND: <account_id>.dkr.ecr.us-east-1.amazonaws.com/agromart-frontend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write    # required for OIDC auth to AWS (no hardcoded keys)
+      contents: write    # required to commit updated image tag back to gitops/
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── Authenticate to AWS via OIDC ─────────────────────────────────────
+      # No AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY needed in GitHub Secrets
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::<account_id>:role/github-actions-ecr-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ── Login to ECR ──────────────────────────────────────────────────────
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ── Backend ───────────────────────────────────────────────────────────
+      - name: Build backend image
+        run: |
+          docker build -t ${{ env.ECR_BACKEND }}:${{ github.sha }} ./backend
+
+      - name: Scan backend image (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.ECR_BACKEND }}:${{ github.sha }}
+          format: table
+          exit-code: 1           # fails pipeline on CRITICAL/HIGH vulns
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+      - name: Push backend to ECR
+        run: docker push ${{ env.ECR_BACKEND }}:${{ github.sha }}
+
+      # ── Frontend ──────────────────────────────────────────────────────────
+      - name: Build frontend image
+        run: |
+          docker build -t ${{ env.ECR_FRONTEND }}:${{ github.sha }} ./frontend
+
+      - name: Scan frontend image (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.ECR_FRONTEND }}:${{ github.sha }}
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+      - name: Push frontend to ECR
+        run: docker push ${{ env.ECR_FRONTEND }}:${{ github.sha }}
+
+      # ── Update gitops/ manifests with new image tags ──────────────────────
+      # ArgoCD detects this commit and triggers the rolling deploy automatically
+      - name: Update image tags in gitops manifests
+        run: |
+          sed -i "s|image: .*agromart-backend.*|image: ${{ env.ECR_BACKEND }}:${{ github.sha }}|" \
+            gitops/backend-deployment.yaml
+          sed -i "s|image: .*agromart-frontend.*|image: ${{ env.ECR_FRONTEND }}:${{ github.sha }}|" \
+            gitops/frontend-deployment.yaml
+          # Also update the prisma-migrate job image (same backend image)
+          sed -i "s|image: agromart-backend:.*|image: ${{ env.ECR_BACKEND }}:${{ github.sha }}|" \
+            gitops/prisma-migrate-job.yaml
+
+      - name: Commit and push updated manifests
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add gitops/backend-deployment.yaml \
+                  gitops/frontend-deployment.yaml \
+                  gitops/prisma-migrate-job.yaml
+          git diff --staged --quiet || git commit -m "ci: deploy ${{ github.sha }} [skip ci]"
+          git push

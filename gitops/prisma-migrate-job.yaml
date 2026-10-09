@@ -1,0 +1,24 @@
+# Runs prisma migrate deploy BEFORE the backend Deployment is updated.
+# ArgoCD PreSync hook: if this Job fails, the sync is aborted — backend never gets old schema.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: prisma-migrate
+  namespace: agromart
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: agromart-backend-sa
+      containers:
+        - name: prisma-migrate
+          # CI will update this tag on every deploy (same image as backend)
+          image: agromart-backend:latest
+          command: ["npx", "prisma", "migrate", "deploy"]
+          envFrom:
+            - secretRef:
+                name: agromart-backend-secrets   # provides DATABASE_URL

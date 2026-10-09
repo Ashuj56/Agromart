@@ -1,4 +1,4 @@
-﻿apiVersion: apps/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: agromart-backend
@@ -19,11 +19,12 @@ spec:
         prometheus.io/path: "/metrics"
         prometheus.io/port: "4000"
     spec:
+      serviceAccountName: agromart-backend-sa
       containers:
         - name: backend
           # Replace with your ECR URI in CI/CD, e.g. <account_id>.dkr.ecr.ap-south-1.amazonaws.com/agromart-backend:v1.0.0
           image: agromart-backend:v1.0.0
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 4000
               name: http
@@ -35,7 +36,6 @@ spec:
           envFrom:
             - secretRef:
                 name: agromart-backend-secrets
-                optional: true
           resources:
             requests:
               cpu: "250m"
