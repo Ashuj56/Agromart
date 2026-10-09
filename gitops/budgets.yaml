@@ -1,0 +1,12 @@
+version: v1
+budgets:
+  staging:
+    monthlyLimitUSD: 150.00
+    currency: USD
+    maxCpuCores: "2.0"
+    maxMemoryGiB: "4.0"
+  production:
+    monthlyLimitUSD: 500.00
+    currency: USD
+    maxCpuCores: "8.0"
+    maxMemoryGiB: "16.0"
