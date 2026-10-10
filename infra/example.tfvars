@@ -8,10 +8,10 @@ private_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
 
 eks_version            = "1.30"
 eks_node_instance_type = "t3.micro"
-eks_node_desired       = 2
-eks_node_min           = 1
-eks_node_max           = 4
+eks_node_desired       = 4
+eks_node_min           = 2
+eks_node_max           = 6
 
 db_username       = "agromart_admin"
-db_password       = "ReplaceWithStrongPassword123!"
+db_password       = "Sql080505"
 db_instance_class = "db.t3.micro"

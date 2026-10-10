@@ -28,10 +28,9 @@ resource "aws_db_instance" "postgres" {
   vpc_security_group_ids = [aws_security_group.rds.id]
   publicly_accessible    = false
 
-  # Backup & maintenance
-  backup_retention_period   = 7
-  skip_final_snapshot       = false
-  final_snapshot_identifier = "${var.project_name}-${var.environment}-final-snapshot"
+  # Backup & maintenance (Free Tier accounts allow max 1 day backup retention)
+  backup_retention_period   = 1
+  skip_final_snapshot       = true
 
   tags = { Name = "${var.project_name}-${var.environment}-postgres" }
 }

@@ -9,8 +9,8 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_BACKEND:  <account_id>.dkr.ecr.us-east-1.amazonaws.com/agromart-backend
-  ECR_FRONTEND: <account_id>.dkr.ecr.us-east-1.amazonaws.com/agromart-frontend
+  ECR_BACKEND:  848647692924.dkr.ecr.us-east-1.amazonaws.com/agromart-backend
+  ECR_FRONTEND: 848647692924.dkr.ecr.us-east-1.amazonaws.com/agromart-frontend
 
 jobs:
   build-and-push:
@@ -27,7 +27,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::<account_id>:role/github-actions-ecr-role
+          role-to-assume: arn:aws:iam::848647692924:role/github-actions-ecr-role
           aws-region: ${{ env.AWS_REGION }}
 
       # ── Login to ECR ──────────────────────────────────────────────────────
