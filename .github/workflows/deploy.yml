@@ -42,7 +42,7 @@ jobs:
           docker build -t ${{ env.ECR_BACKEND }}:${{ github.sha }} ./backend
 
       - name: Scan backend image (Trivy)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           image-ref: ${{ env.ECR_BACKEND }}:${{ github.sha }}
           format: table
@@ -59,7 +59,7 @@ jobs:
           docker build -t ${{ env.ECR_FRONTEND }}:${{ github.sha }} ./frontend
 
       - name: Scan frontend image (Trivy)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           image-ref: ${{ env.ECR_FRONTEND }}:${{ github.sha }}
           format: table

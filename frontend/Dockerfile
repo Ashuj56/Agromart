@@ -5,11 +5,12 @@ WORKDIR /app
 # Disable Next.js telemetry during build
 ENV NEXT_TELEMETRY_DISABLED=1
 
+RUN npm install --global npm@latest
+
 # Install dependencies first (cached layer — only invalidated if package files change)
 COPY package*.json ./
 RUN npm ci --prefer-offline && npm cache clean --force
 
-# Copy source and build
 COPY . .
 RUN npm run build
 
@@ -17,6 +18,9 @@ RUN npm run build
 # Use the minimal Node Alpine image — no npm, no devDeps, no source code
 FROM node:20-alpine AS runner
 WORKDIR /app
+
+# Update bundled npm to resolve CVEs
+RUN npm install --global npm@latest
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

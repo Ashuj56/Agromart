@@ -2,6 +2,10 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# OpenSSL needed for Prisma generate, latest npm resolves bundled tar CVE
+RUN apk add --no-cache openssl \
+    && npm install --global npm@latest
+
 # Install ALL deps (devDeps needed for tsc + prisma CLI)
 COPY package*.json ./
 RUN npm ci && npm cache clean --force
@@ -15,8 +19,9 @@ RUN npx prisma generate && npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Prisma client requires libssl at runtime — Alpine doesn't include it by default
-RUN apk add --no-cache openssl
+# Prisma runtime libssl + patch bundled npm
+RUN apk add --no-cache openssl \
+    && npm install --global npm@latest
 
 ENV NODE_ENV=production
 
