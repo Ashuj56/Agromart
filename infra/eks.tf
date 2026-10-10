@@ -68,6 +68,10 @@ resource "aws_eks_cluster" "main" {
 
   depends_on = [aws_iam_role_policy_attachment.eks_cluster_policy]
 
+  lifecycle {
+    ignore_changes = [version]
+  }
+
   tags = { Name = "${var.project_name}-${var.environment}-eks" }
 }
 
