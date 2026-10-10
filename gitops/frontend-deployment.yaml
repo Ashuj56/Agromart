@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: 848647692924.dkr.ecr.us-east-1.amazonaws.com/agromart-frontend:839b0346f7d471f99c4d0222b6a3b4505b242962
+          image: 848647692924.dkr.ecr.us-east-1.amazonaws.com/agromart-frontend:98dc37c44b37256fe3577b1de19a034c1508976a
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
