@@ -5,8 +5,6 @@ WORKDIR /app
 # Disable Next.js telemetry during build
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN npm install --global npm@latest
-
 # Install dependencies first (cached layer — only invalidated if package files change)
 COPY package*.json ./
 RUN npm ci --prefer-offline && npm cache clean --force
@@ -19,8 +17,8 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Update bundled npm to resolve CVEs
-RUN npm install --global npm@latest
+# Remove npm/npx completely — Next.js standalone runs directly with 'node server.js'
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
