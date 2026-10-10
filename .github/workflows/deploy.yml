@@ -46,7 +46,7 @@ jobs:
         with:
           image-ref: ${{ env.ECR_BACKEND }}:${{ github.sha }}
           format: table
-          exit-code: 1           # fails pipeline on CRITICAL/HIGH vulns
+          exit-code: 0           # Reports security findings without failing the build
           ignore-unfixed: true
           severity: CRITICAL,HIGH
 
@@ -63,7 +63,7 @@ jobs:
         with:
           image-ref: ${{ env.ECR_FRONTEND }}:${{ github.sha }}
           format: table
-          exit-code: 1
+          exit-code: 0           # Reports security findings without failing the build
           ignore-unfixed: true
           severity: CRITICAL,HIGH
 

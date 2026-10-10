@@ -2,8 +2,8 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# OpenSSL needed for Prisma generate
-RUN apk add --no-cache openssl
+# OpenSSL needed for Prisma generate + update OS packages
+RUN apk update && apk upgrade --no-cache && apk add --no-cache openssl
 
 # Install ALL deps (devDeps needed for tsc + prisma CLI)
 COPY package*.json ./
@@ -18,8 +18,8 @@ RUN npx prisma generate && npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Prisma runtime requires libssl
-RUN apk add --no-cache openssl
+# Patch all OS packages & install libssl for Prisma runtime
+RUN apk update && apk upgrade --no-cache && apk add --no-cache openssl
 
 ENV NODE_ENV=production
 

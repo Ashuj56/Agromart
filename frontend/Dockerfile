@@ -13,12 +13,12 @@ COPY . .
 RUN npm run build
 
 # ── Stage 2: Runner ──────────────────────────────────────────────────────────
-# Use the minimal Node Alpine image — no npm, no devDeps, no source code
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Remove npm/npx completely — Next.js standalone runs directly with 'node server.js'
-RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+# Upgrade OS packages & remove npm to eliminate vulnerabilities
+RUN apk update && apk upgrade --no-cache \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
