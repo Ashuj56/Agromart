@@ -34,10 +34,10 @@ COPY --from=builder /app/dist ./dist
 # Copy Prisma schema (needed for migrations / runtime schema resolution)
 COPY --from=builder /app/prisma ./prisma
 
-# Copy the pre-generated Prisma client — no need to run prisma generate again
-# This avoids pulling the heavy prisma CLI into the final image
+# Copy the pre-generated Prisma client & CLI for migrations
 COPY --from=builder /app/node_modules/.prisma        ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=builder /app/node_modules/prisma        ./node_modules/prisma
 
 EXPOSE 4000
 CMD ["node", "dist/index.js"]

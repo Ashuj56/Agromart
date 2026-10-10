@@ -17,7 +17,6 @@ spec:
     spec:
       containers:
         - name: frontend
-          # Replace with your ECR URI in CI/CD, e.g. <account_id>.dkr.ecr.ap-south-1.amazonaws.com/agromart-frontend:v1.0.0
           image: 848647692924.dkr.ecr.us-east-1.amazonaws.com/agromart-frontend:839b0346f7d471f99c4d0222b6a3b4505b242962
           imagePullPolicy: Always
           ports:
