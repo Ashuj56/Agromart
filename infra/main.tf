@@ -9,13 +9,13 @@ terraform {
   }
 
   # Backend state configuration (S3 + DynamoDB locking)
-  # backend "s3" {
-  #   bucket         = "agromart-terraform-state"
-  #   key            = "state/terraform.tfstate"
-  #   region         = "ap-south-1"
-  #   dynamodb_table = "agromart-terraform-locks"
-  #   encrypt        = true
-  # }
+  backend "s3" {
+    bucket         = "agromart-terraform-state"
+    key            = "state/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "agromart-terraform-locks"
+    encrypt        = true
+  }
 }
 
 provider "aws" {

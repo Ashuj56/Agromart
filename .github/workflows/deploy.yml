@@ -24,7 +24,6 @@ jobs:
         uses: actions/checkout@v4
 
       # ── Authenticate to AWS via OIDC ─────────────────────────────────────
-      # No AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY needed in GitHub Secrets
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
