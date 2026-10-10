@@ -23,7 +23,7 @@ spec:
       containers:
         - name: backend
           # Replace with your ECR URI in CI/CD, e.g. <account_id>.dkr.ecr.ap-south-1.amazonaws.com/agromart-backend:v1.0.0
-          image: agromart-backend:v1.0.0
+          image: 848647692924.dkr.ecr.us-east-1.amazonaws.com/agromart-backend:e2f62ced43ff73fde3710912a5ec402ebb0501f1
           imagePullPolicy: Always
           ports:
             - containerPort: 4000
