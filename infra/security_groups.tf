@@ -64,7 +64,10 @@ resource "aws_security_group" "rds" {
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
-    security_groups = [aws_security_group.eks_nodes.id]
+    security_groups = [
+      aws_security_group.eks_nodes.id,
+      aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
+    ]
     description     = "PostgreSQL from EKS nodes"
   }
 
@@ -88,7 +91,10 @@ resource "aws_security_group" "redis" {
     from_port       = 6379
     to_port         = 6379
     protocol        = "tcp"
-    security_groups = [aws_security_group.eks_nodes.id]
+    security_groups = [
+      aws_security_group.eks_nodes.id,
+      aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
+    ]
     description     = "Redis from EKS nodes"
   }
 
