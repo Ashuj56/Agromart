@@ -6,14 +6,12 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting AgroMart database seeding...');
 
-  // 1. Clean existing records in reverse dependency order
   await prisma.review.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.order.deleteMany();
   await prisma.product.deleteMany();
   await prisma.user.deleteMany();
 
-  // 2. Create users
   const hashedPassword = await bcrypt.hash('Password123!', 10);
 
   const buyer = await prisma.user.create({

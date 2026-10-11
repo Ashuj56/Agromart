@@ -15,4 +15,4 @@ spec:
           command: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
           envFrom:
             - secretRef:
-                name: agromart-backend-secrets   # provides DATABASE_URL
+                name: agromart-backend-secrets   

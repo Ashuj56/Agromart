@@ -1,8 +1,3 @@
-# ─────────────────────────────────────────────────────────────────────────────
-#  VPC + Networking
-#  Creates: VPC, public/private subnets across 2 AZs, IGW, NAT Gateway,
-#           and route tables so EKS nodes, RDS, and Redis stay private.
-# ─────────────────────────────────────────────────────────────────────────────
 
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
