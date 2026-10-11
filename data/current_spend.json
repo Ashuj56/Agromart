@@ -1,0 +1,15 @@
+{
+  "source": "mock_data",
+  "period": {
+    "start": "2026-10-01",
+    "end": "2026-10-12"
+  },
+  "timestamp": "2026-10-11T04:08:51.683337+00:00",
+  "is_mock": true,
+  "namespaces": {
+    "agromart": 24.5,
+    "argocd": 8.75,
+    "kube-system": 14.2
+  },
+  "total_usd": 47.45
+}

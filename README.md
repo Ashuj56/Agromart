@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 # 🌾 AgroMart
 
@@ -341,6 +341,57 @@ docker compose up --build -d
 curl http://localhost:4000/health   # must return 200
 curl http://localhost:3000          # must return 200
 docker compose down
+```
+
+---
+
+## 💰 Cost-Aware GitOps Gate (Shift-Left FinOps)
+
+Standard GitOps engines (ArgoCD/Flux) blindly synchronize whatever is committed to Git with zero awareness of cloud spend. Teams typically discover budget overruns *after* the AWS bill arrives. 
+
+This project implements a **Cost-Aware GitOps Gate**: an automated policy layer that estimates the financial impact of proposed Kubernetes resource changes **before** code is merged and synchronized to Amazon EKS.
+
+### 🏛️ Architecture & Flow
+
+```mermaid
+flowchart LR
+    PR[Developer PR] --> CI[GitHub Actions Gate]
+    CI --> CE[AWS Cost Ingestion\nscripts/cost_ingest.py]
+    CI --> Est[Cost Estimator\nscripts/cost_estimator.py]
+    CE & Est --> OPA[OPA / Conftest Policy\npolicy/cost_gate.rego]
+    OPA -->|Exceeds Budget| Block[❌ PR Blocked / Comment Posted]
+    OPA -->|Within Budget| Pass[✅ PR Approved / Merged]
+    Pass --> ArgoCD[ArgoCD GitOps Sync]
+    ArgoCD --> EKS[Amazon EKS Cluster]
+```
+
+### 🎯 Why Gate at CI Time?
+1. **Prevention vs. Remediation:** Catching cost spikes *before* deployment prevents cloud bills from being incurred, rather than reacting to alerts days later.
+2. **Transparent Accountability:** Developers immediately see the monthly dollar impact of replica, CPU, and RAM changes directly on their Pull Request.
+3. **Guardrails Without Bottlenecks:** Hard budgets are strictly enforced by code, but legitimate architectural expansions can use the auditable exception path.
+
+### 🧪 Running the Gate Locally
+
+```bash
+# 1. Ingest actual month-to-date AWS spend
+python3 scripts/cost_ingest.py --mock
+
+# 2. Estimate projected monthly cost from gitops manifests
+python3 scripts/cost_estimator.py
+
+# 3. Evaluate Open Policy Agent (OPA) rules
+conftest test data/cost_evaluation.json --policy policy/
+
+# 4. Run the full Phase 8 validation test suite
+python3 scripts/test_cost_gate.py
+```
+
+### 📊 Observability (Prometheus & Grafana)
+Start the metrics exporter to feed live cost and budget metrics into Grafana:
+```bash
+python3 scripts/cost_exporter.py
+# Exposes Prometheus metrics on http://localhost:9102/metrics
+# Import monitoring/cost-dashboard.json into Grafana for real-time visualization.
 ```
 
 ---

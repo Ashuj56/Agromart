@@ -1,0 +1,107 @@
+name: Cost-Aware GitOps Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'gitops/**'
+      - 'policy/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  cost-gate:
+    name: Evaluate Cost Impact & Policy Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python Dependencies
+        run: |
+          pip install pyyaml boto3
+
+      - name: Run Cost Ingestion
+        run: |
+          python3 scripts/cost_ingest.py --mock
+
+      - name: Run Projected Cost Estimator
+        run: |
+          python3 scripts/cost_estimator.py
+
+      - name: Install Conftest
+        run: |
+          wget -q -O conftest.tar.gz https://github.com/open-policy-agent/conftest/releases/download/v0.56.0/conftest_0.56.0_Linux_x86_64.tar.gz
+          tar -xzf conftest.tar.gz conftest
+          sudo mv conftest /usr/local/bin/
+          conftest --version
+
+      - name: Evaluate Policy (Conftest)
+        id: conftest_eval
+        continue-on-error: true
+        run: |
+          conftest test data/cost_evaluation.json --policy policy/ | tee conftest_output.txt
+
+      - name: Generate PR Cost Report Comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const evalData = JSON.parse(fs.readFileSync('data/cost_evaluation.json', 'utf8'));
+            const conftestLog = fs.existsSync('conftest_output.txt') ? fs.readFileSync('conftest_output.txt', 'utf8') : '';
+
+            let tableRows = '';
+            for (const [ns, data] of Object.entries(evalData.namespaces)) {
+              const statusEmoji = data.status === 'PASS' ? '✅ PASS' : (data.status === 'WARN' ? '⚠️ WARN' : '❌ DENY');
+              tableRows += `| **${ns}** | $${data.current_spend_usd.toFixed(2)} | +$${data.workload_projected_usd.toFixed(2)} | **$${data.projected_total_usd.toFixed(2)}** | $${data.budget_usd.toFixed(2)} | ${data.allocated_cpu_cores} / ${data.max_cpu_cores} cores | ${statusEmoji} |\n`;
+            }
+
+            const overallPassed = evalData.summary.overall_status !== 'DENY';
+            const badge = overallPassed ? '### ✅ Cost-Aware Gate: PASSED' : '### ❌ Cost-Aware Gate: BLOCKED (Budget Breached)';
+
+            const comment = `
+            ${badge}
+
+            **Proposed changes cost evaluation summary:**
+
+            | Namespace | MTD Spend | Workload Cost | Projected Total | Monthly Budget | CPU Allocation | Status |
+            |---|---|---|---|---|---|---|
+            ${tableRows}
+
+            <details>
+            <summary>📋 Conftest Policy Engine Output</summary>
+
+            \`\`\`text
+            ${conftestLog}
+            \`\`\`
+            </details>
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Enforce Policy Gate
+        run: |
+          python3 -c "
+          import json, sys
+          with open('data/cost_evaluation.json') as f:
+              d = json.load(f)
+          if d.get('summary', {}).get('overall_status') == 'DENY':
+              print('❌ PR BLOCKED: Proposed changes violate namespace budget or compute ceilings.')
+              sys.exit(1)
+          print('✅ PR PASSED: All proposed changes are within approved budget.')
+          "

@@ -1,0 +1,66 @@
+{
+  "timestamp": "2026-10-11T04:27:56.009281+00:00",
+  "summary": {
+    "total_budget_usd": 200.0,
+    "total_current_spend_usd": 47.45,
+    "total_projected_usd": 63.84,
+    "overall_status": "PASS"
+  },
+  "namespaces": {
+    "agromart": {
+      "budget_usd": 100.0,
+      "alert_threshold_pct": 80.0,
+      "alert_threshold_usd": 80.0,
+      "current_spend_usd": 24.5,
+      "workload_projected_usd": 16.39,
+      "projected_total_usd": 40.89,
+      "allocated_cpu_cores": 0.5,
+      "max_cpu_cores": 2.0,
+      "allocated_memory_gib": 0.5,
+      "max_memory_gib": 4.0,
+      "status": "PASS",
+      "deployments": [
+        {
+          "name": "agromart-backend",
+          "replicas": 1,
+          "cpu_cores": 0.25,
+          "memory_gib": 0.25
+        },
+        {
+          "name": "agromart-frontend",
+          "replicas": 1,
+          "cpu_cores": 0.25,
+          "memory_gib": 0.25
+        }
+      ]
+    },
+    "argocd": {
+      "budget_usd": 50.0,
+      "alert_threshold_pct": 80.0,
+      "alert_threshold_usd": 40.0,
+      "current_spend_usd": 8.75,
+      "workload_projected_usd": 0.0,
+      "projected_total_usd": 8.75,
+      "allocated_cpu_cores": 0.0,
+      "max_cpu_cores": 1.0,
+      "allocated_memory_gib": 0.0,
+      "max_memory_gib": 2.0,
+      "status": "PASS",
+      "deployments": []
+    },
+    "kube-system": {
+      "budget_usd": 50.0,
+      "alert_threshold_pct": 80.0,
+      "alert_threshold_usd": 40.0,
+      "current_spend_usd": 14.2,
+      "workload_projected_usd": 0.0,
+      "projected_total_usd": 14.2,
+      "allocated_cpu_cores": 0.0,
+      "max_cpu_cores": 2.0,
+      "allocated_memory_gib": 0.0,
+      "max_memory_gib": 2.0,
+      "status": "PASS",
+      "deployments": []
+    }
+  }
+}

@@ -1,12 +1,17 @@
 version: v1
-budgets:
-  staging:
-    monthlyLimitUSD: 150.00
-    currency: USD
-    maxCpuCores: "2.0"
-    maxMemoryGiB: "4.0"
-  production:
-    monthlyLimitUSD: 500.00
-    currency: USD
-    maxCpuCores: "8.0"
-    maxMemoryGiB: "16.0"
+namespaces:
+  - name: agromart
+    monthly_budget_usd: 100.00
+    alert_threshold_pct: 80
+    max_cpu_cores: 2.0
+    max_memory_gib: 4.0
+  - name: argocd
+    monthly_budget_usd: 50.00
+    alert_threshold_pct: 80
+    max_cpu_cores: 1.0
+    max_memory_gib: 2.0
+  - name: kube-system
+    monthly_budget_usd: 50.00
+    alert_threshold_pct: 80
+    max_cpu_cores: 2.0
+    max_memory_gib: 2.0

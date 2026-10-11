@@ -1,0 +1,198 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Cost-Aware GitOps Gate — High Level Summary",
+      "type": "row"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 80 },
+              { "color": "red", "value": 100 }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 1 },
+      "id": 2,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "gitops_cost_projected_total_usd{namespace=\"agromart\"}",
+          "legendFormat": "agromart Spend",
+          "refId": "A"
+        }
+      ],
+      "title": "agromart: Projected Spend vs Budget",
+      "type": "gauge"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 80 },
+              { "color": "red", "value": 100 }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 1 },
+      "id": 3,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "gitops_cost_projected_total_usd{namespace=\"argocd\"}",
+          "legendFormat": "argocd Spend",
+          "refId": "A"
+        }
+      ],
+      "title": "argocd: Projected Spend vs Budget",
+      "type": "gauge"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 80 },
+              { "color": "red", "value": 100 }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 1 },
+      "id": 4,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "gitops_cost_projected_total_usd{namespace=\"kube-system\"}",
+          "legendFormat": "kube-system Spend",
+          "refId": "A"
+        }
+      ],
+      "title": "kube-system: Projected Spend vs Budget",
+      "type": "gauge"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 8 },
+      "id": 5,
+      "title": "Resource Allocation & Budget Limits",
+      "type": "row"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 80 },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "id": 6,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "gitops_cost_current_spend_usd",
+          "legendFormat": "{{namespace}} Current MTD Spend",
+          "refId": "A"
+        },
+        {
+          "expr": "gitops_cost_budget_limit_usd",
+          "legendFormat": "{{namespace}} Monthly Budget Limit",
+          "refId": "B"
+        }
+      ],
+      "title": "Spend vs Budget by Namespace",
+      "type": "barchart"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 80 },
+          "unit": "none"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "id": 7,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "gitops_cost_allocated_cpu_cores",
+          "legendFormat": "{{namespace}} CPU Cores",
+          "refId": "A"
+        },
+        {
+          "expr": "gitops_cost_allocated_memory_gib",
+          "legendFormat": "{{namespace}} Memory (GiB)",
+          "refId": "B"
+        }
+      ],
+      "title": "Compute Allocation by Namespace",
+      "type": "barchart"
+    }
+  ],
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["gitops", "finops", "aws", "kubernetes"],
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Cost-Aware GitOps Gate — Spend Dashboard",
+  "version": 1
+}
