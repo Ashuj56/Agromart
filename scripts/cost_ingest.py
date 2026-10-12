@@ -12,14 +12,12 @@ import argparse
 from datetime import datetime, date, timedelta, timezone
 
 def get_current_billing_period():
-    """Return start of current month and tomorrow's date formatted as YYYY-MM-DD."""
     today = date.today()
     start_date = today.replace(day=1).strftime("%Y-%m-%d")
     tomorrow = (today + timedelta(days=1)).strftime("%Y-%m-%d")
     return start_date, tomorrow
 
 def fetch_aws_cost_explorer(region="us-east-1"):
-    """Query AWS Cost Explorer API for spend grouped by 'Namespace' tag."""
     import boto3
     from botocore.exceptions import ClientError, NoCredentialsError
 

@@ -23,7 +23,7 @@ RAM_MONTHLY_RATE_USD = 3.24
 def parse_cpu(cpu_str):
     """Convert Kubernetes CPU string (e.g., '250m', '1', '0.5') to float cores."""
     if not cpu_str:
-        return 0.1  # Default minimal request if unspecified
+        return 0.1  
     s = str(cpu_str).strip()
     if s.endswith("m"):
         return float(s[:-1]) / 1000.0
@@ -32,7 +32,7 @@ def parse_cpu(cpu_str):
 def parse_memory_gib(mem_str):
     """Convert Kubernetes memory string (e.g., '256Mi', '1Gi', '512M') to float GiB."""
     if not mem_str:
-        return 0.128  # Default 128Mi if unspecified
+        return 0.128 
     s = str(mem_str).strip()
     if s.endswith("Gi"):
         return float(s[:-2])
@@ -45,7 +45,6 @@ def parse_memory_gib(mem_str):
     return float(s) / (1024.0 ** 3)
 
 def load_yaml_simple(filepath):
-    """Simple YAML loader supporting pyyaml or basic key-value fallback."""
     try:
         import yaml
         with open(filepath, "r") as f:

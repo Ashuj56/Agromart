@@ -29,14 +29,12 @@ def main():
     tests_passed = 0
     total_tests = 3
 
-    # Check that conftest is available
     rc, out, _ = run_cmd("conftest --version")
     if rc != 0:
         print("❌ Error: 'conftest' command not found in PATH. Please ensure Conftest is installed.")
         sys.exit(1)
     print(f"✅ Found Conftest: {out.strip()}")
 
-    # ── TEST 1: Normal Within-Budget Deployment ──────────────────────────────
     print_banner("TEST 1: Evaluating Standard Within-Budget Deployment")
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
         mock_eval = {
@@ -69,7 +67,6 @@ def main():
     else:
         print(f"❌ TEST 1 FAILED: Expected PASS, got exit code {rc}.\nOutput:\n{stdout}\n{stderr}")
 
-    # ── TEST 2: Over-Budget Resource Breach (15 Replicas) ────────────────────
     print_banner("TEST 2: Evaluating Over-Budget PR (Breaching $100 Budget & 2.0 Cores)")
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
         mock_breach = {
@@ -103,7 +100,6 @@ def main():
     else:
         print(f"❌ TEST 2 FAILED: Expected DENY with budget breach, got exit code {rc}.\nOutput:\n{stdout}")
 
-    # ── TEST 3: Budget Exception Override ────────────────────────────────────
     print_banner("TEST 3: Evaluating Authorized Override (exception_approved = true)")
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
         mock_override = {
@@ -137,7 +133,6 @@ def main():
     else:
         print(f"❌ TEST 3 FAILED: Expected override to PASS, got exit code {rc}.\nOutput:\n{stdout}")
 
-    # ── SUMMARY ──────────────────────────────────────────────────────────────
     print_banner(f"Test Suite Summary: {tests_passed}/{total_tests} Tests Passed")
     if tests_passed == total_tests:
         print("🎉 All Cost-Aware GitOps Gate policy test scenarios validated successfully!\n")
