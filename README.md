@@ -30,7 +30,7 @@ in private subnets. GitHub Actions authenticates to AWS using OIDC; no long-
 lived AWS access keys are required by the deployment workflow.
 
 ```mermaid
-flowchart TB
+flowchart LR
     Developer[Developer / Git client] -->|git push| GitHub[GitHub repository + Actions]
     Browser[User browser] -.->|kubectl port-forward<br/>8080 / 4000 / 8081| EKS
 
