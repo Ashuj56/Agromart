@@ -8,86 +8,76 @@ This document provides a comprehensive technical overview of the **AgroMart** de
 
 The deployment utilizes a secure, multi-tier AWS architecture configured via Terraform, with compute running on Amazon EKS and data stored in Amazon RDS PostgreSQL and Amazon ElastiCache Redis within private subnets.
 
-```mermaid
-flowchart TD
-    subgraph External ["Developer & Internet Traffic"]
-        Dev[Developer / Git Client]
-        Browser[User Laptop Browser]
-        GH[GitHub Repository / Actions]
-    end
+The diagram is organized from left to right: source control and users, AWS platform
+services, the VPC network boundary, EKS workloads, and the private data tier.
+Dashed traffic represents local `kubectl port-forward` access; solid traffic
+represents deployment or application traffic.
 
-    subgraph AWS ["Amazon Web Services (AWS Cloud - us-east-1)"]
-        subgraph VPC ["AgroMart VPC (10.0.0.0/16)"]
-            
-            subgraph PublicSubnets ["Public Subnets (us-east-1a, us-east-1b)"]
+```mermaid
+flowchart LR
+    Developer[Developer / Git client] -->|git push| GitHub[GitHub repository + Actions]
+    Browser[User browser] -.->|kubectl port-forward<br/>8080 / 4000 / 8081| EKS
+
+    subgraph AWS["AWS account • us-east-1"]
+        ECR_BE[ECR: backend]
+        ECR_FE[ECR: frontend]
+        IAM[OIDC provider + IAM roles]
+        GitHub -->|OIDC + push images| ECR_BE
+        GitHub -->|OIDC + push images| ECR_FE
+        GitHub -->|PR cost gate| CostExplorer[AWS Cost Explorer]
+
+        subgraph VPC["AgroMart VPC • 10.0.0.0/16"]
+            subgraph Public["Public subnets • us-east-1a / us-east-1b"]
                 IGW[Internet Gateway]
                 NAT[NAT Gateway + Elastic IP]
-                LB["External Load Balancer\n(Optional / Port-Forward)"]
+                LB[Optional external load balancer]
             end
 
-            subgraph PrivateSubnets ["Private Subnets (us-east-1a, us-east-1b)"]
-                
-                subgraph EKS ["Amazon EKS Cluster (v1.30)"]
-                    ControlPlane[EKS Managed Control Plane]
-                    
-                    subgraph Nodes ["4x EC2 Worker Nodes (t3.micro - AL2023)"]
-                        subgraph NS_KubeSystem ["Namespace: kube-system"]
-                            aws_node["aws-node (VPC CNI)"]
-                            kube_proxy["kube-proxy"]
-                            coredns["CoreDNS (1 replica)"]
-                        end
-
-                        subgraph NS_ArgoCD ["Namespace: argocd"]
-                            argocd_server["argocd-server"]
-                            argocd_repo["argocd-repo-server"]
-                            argocd_redis["argocd-redis"]
-                            argocd_controller["argocd-application-controller"]
-                        end
-
-                        subgraph NS_Agromart ["Namespace: agromart"]
-                            fe["agromart-frontend\n(Next.js - Port 3000)"]
-                            be["agromart-backend\n(GraphQL API - Port 4000)"]
-                            migrate["prisma-migrate\n(One-off Batch Job)"]
-                        end
+            subgraph Private["Private subnets • us-east-1a / us-east-1b"]
+                subgraph EKS["Amazon EKS • agromart-staging • v1.30"]
+                    ControlPlane[EKS managed control plane]
+                    subgraph Nodes["4 x EC2 worker nodes • t3.micro • AL2023"]
+                        System["kube-system<br/>aws-node • kube-proxy • CoreDNS (1)"]
+                        Argo["argocd namespace<br/>server • repo-server • redis • controller"]
+                        App["agromart namespace<br/>frontend :3000 • backend :4000<br/>Prisma migration job"]
                     end
                 end
-
-                subgraph DataTier ["Managed Data Tier (Private Subnets)"]
-                    RDS[("Amazon RDS PostgreSQL 16\n(Port 5432 - gp3 Encrypted)")]
-                    Redis[("Amazon ElastiCache Redis\n(Port 6379)")]
+                subgraph Data["Managed data tier"]
+                    RDS[(RDS PostgreSQL 16<br/>private • 5432 • encrypted gp3)]
+                    Redis[(ElastiCache Redis<br/>private • 6379)]
                 end
             end
-        end
-
-        subgraph IAM_ECR ["AWS Platform Services"]
-            ECR_BE[ECR: agromart-backend]
-            ECR_FE[ECR: agromart-frontend]
-            OIDC[IAM OIDC Provider + Roles]
-            CE[AWS Cost Explorer API]
         end
     end
 
-    %% Network Connections
-    Dev -->|git push| GH
-    GH -->|OIDC Auth & Push Images| ECR_BE
-    GH -->|OIDC Auth & Push Images| ECR_FE
-    GH -->|PR Cost Gate Check| CE
-    
-    argocd_controller -->|Polls Manifests| GH
-    argocd_controller -->|Deploys / Self-Heals| NS_Agromart
-    
-    fe -->|Internal Cluster DNS| be
-    be -->|TCP 5432 / Cluster SG| RDS
-    be -->|TCP 6379 / Cluster SG| Redis
-    migrate -->|Schema Migrations| RDS
-    
-    Browser -.->|kubectl port-forward :8080| fe
-    Browser -.->|kubectl port-forward :4000| be
-    Browser -.->|kubectl port-forward :8081| argocd_server
-
-    NAT -->|Outbound Internet| IGW
-    Nodes -->|Outbound to ECR/APIs| NAT
+    Argo -->|poll manifests| GitHub
+    Argo -->|deploy / self-heal| App
+    App -->|internal DNS / GraphQL| RDS
+    App -->|TCP 6379| Redis
+    App -->|ECR / AWS APIs| NAT
+    NAT -->|outbound internet| IGW
+    ControlPlane --> System
+    ControlPlane --> Argo
+    ControlPlane --> App
 ```
+
+### Generate an AWS-icon SVG
+
+The repository also includes a Python source file that renders the same layout
+with official AWS and Kubernetes icons:
+[`scripts/aws_architecture_diagram.py`](C:/Users/ashuj/Desktop/AWS%20Projects/Agromart/scripts/aws_architecture_diagram.py).
+
+Install the two local rendering prerequisites, then run it from the repository
+root:
+
+```bash
+python -m pip install diagrams
+python scripts/aws_architecture_diagram.py
+```
+
+Install [Graphviz](https://graphviz.org/download/) separately and ensure its
+`dot` executable is on `PATH`. The generated file is
+`docs/architecture/agromart_aws_architecture.svg`.
 
 ---
 

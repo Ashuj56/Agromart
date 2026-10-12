@@ -1,403 +1,261 @@
-<div align="center">
+# AgroMart Cost-Aware GitOps
 
-# 🌾 AgroMart
+AgroMart is an AWS and Kubernetes reference project for **shift-left FinOps**:
+it evaluates the cost and resource impact of GitOps changes before they are
+merged and synchronized to Amazon EKS.
 
-**A full-stack farmer marketplace for buying, selling, and renting agricultural goods.**
+The marketplace application is the workload used to exercise the platform. The
+primary engineering focus of this repository is the **Cost-Aware GitOps Gate**,
+the Terraform-managed AWS foundation, Argo CD delivery, and operational
+guardrails around Kubernetes resources.
 
-[![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org/)
-[![GraphQL](https://img.shields.io/badge/GraphQL-Apollo_4-e10098?logo=graphql)](https://www.apollographql.com/)
-[![Prisma](https://img.shields.io/badge/Prisma-5-2D3748?logo=prisma)](https://www.prisma.io/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?logo=postgresql)](https://www.postgresql.org/)
-[![Redis](https://img.shields.io/badge/Redis-7-red?logo=redis)](https://redis.io/)
-[![Terraform](https://img.shields.io/badge/Terraform-1.9-7B42BC?logo=terraform)](https://www.terraform.io/)
+## Why this project exists
 
-</div>
+Traditional GitOps continuously reconciles the desired state in Git, but does
+not ask whether a change is affordable. This project adds a policy checkpoint
+before deployment:
 
----
+1. A pull request changes Kubernetes manifests or cost policy.
+2. GitHub Actions ingests month-to-date spend and estimates the proposed
+   workload cost.
+3. OPA/Conftest evaluates namespace budgets and compute ceilings.
+4. The workflow comments a cost report on the pull request and blocks a budget
+   breach.
+5. Approved changes merge and Argo CD reconciles them to EKS.
 
-## 📋 Overview
+## AWS cloud architecture
 
-AgroMart is a farmer e-commerce marketplace where farmers can:
+The platform runs in `us-east-1` with EKS workloads and managed data services
+in private subnets. GitHub Actions authenticates to AWS using OIDC; no long-
+lived AWS access keys are required by the deployment workflow.
 
-- 🌾 **Buy and Sell Crops** — wheat, rice, vegetables, fruits
-- 🧪 **Buy and Sell Fertilizers** — urea, DAP, potash, pesticides
-- 🚜 **Rent Equipment** — tractors, harvesters, irrigation pumps
+```mermaid
+flowchart LR
+    Developer[Developer / Git client] -->|git push| GitHub[GitHub repository + Actions]
+    Browser[User browser] -.->|kubectl port-forward<br/>8080 / 4000 / 8081| EKS
 
-The app also serves as the base for **4 AWS DevOps infrastructure projects**:
+    subgraph AWS["AWS account • us-east-1"]
+        ECR_BE[ECR: backend]
+        ECR_FE[ECR: frontend]
+        IAM[OIDC provider + IAM roles]
+        GitHub -->|OIDC + push images| ECR_BE
+        GitHub -->|OIDC + push images| ECR_FE
+        GitHub -->|PR cost gate| CostExplorer[AWS Cost Explorer]
 
-| Project | Purpose |
+        subgraph VPC["AgroMart VPC • 10.0.0.0/16"]
+            subgraph Public["Public subnets • us-east-1a / us-east-1b"]
+                IGW[Internet Gateway]
+                NAT[NAT Gateway + Elastic IP]
+                LB[Optional external load balancer]
+            end
+
+            subgraph Private["Private subnets • us-east-1a / us-east-1b"]
+                subgraph EKS["Amazon EKS • agromart-staging • v1.30"]
+                    ControlPlane[EKS managed control plane]
+                    subgraph Nodes["4 x EC2 worker nodes • t3.micro • AL2023"]
+                        System["kube-system<br/>aws-node • kube-proxy • CoreDNS (1)"]
+                        Argo["argocd namespace<br/>server • repo-server • redis • controller"]
+                        App["agromart namespace<br/>frontend :3000 • backend :4000<br/>Prisma migration job"]
+                    end
+                end
+                subgraph Data["Managed data tier"]
+                    RDS[(RDS PostgreSQL 16<br/>private • 5432 • encrypted gp3)]
+                    Redis[(ElastiCache Redis<br/>private • 6379)]
+                end
+            end
+        end
+    end
+
+    Argo -->|poll manifests| GitHub
+    Argo -->|deploy / self-heal| App
+    App -->|internal DNS / GraphQL| RDS
+    App -->|TCP 6379| Redis
+    App -->|ECR / AWS APIs| NAT
+    NAT -->|outbound internet| IGW
+    ControlPlane --> System
+    ControlPlane --> Argo
+    ControlPlane --> App
+```
+
+The diagram is also documented in
+[`DEPLOYMENT_ISSUES_AND_ARCHITECTURE.md`](./DEPLOYMENT_ISSUES_AND_ARCHITECTURE.md).
+The architecture document also describes the optional AWS-icon SVG rendering
+workflow with the [`diagrams`](https://pypi.org/project/diagrams/) package and
+[Graphviz](https://graphviz.org/download/).
+
+## Repository layout
+
+| Path | Responsibility |
 |---|---|
-| Cost-Aware GitOps Gate | Estimates K8s deployment cost from resource requests |
-| Terraform Drift Detection | Detects and auto-remediates infra drift |
-| Self-Healing Incident Loop | Uses Prometheus alerts to auto-recover services |
-| Supply-Chain Deployment Pipeline | Signs, scans, and gates container images |
+| [`infra/`](./infra/) | Terraform for VPC, EKS, ECR, RDS, ElastiCache, IAM, and security groups |
+| [`gitops/`](./gitops/) | Kubernetes workload manifests, namespaces, Argo CD application, and budgets |
+| [`policy/`](./policy/) | OPA/Rego rules for budget, CPU, and memory enforcement |
+| [`scripts/cost_ingest.py`](./scripts/cost_ingest.py) | Reads AWS Cost Explorer spend or generates local mock spend |
+| [`scripts/cost_estimator.py`](./scripts/cost_estimator.py) | Converts GitOps resource requests into projected monthly cost |
+| [`scripts/cost_exporter.py`](./scripts/cost_exporter.py) | Exposes cost evaluation data as Prometheus metrics |
+| [`scripts/test_cost_gate.py`](./scripts/test_cost_gate.py) | PASS, DENY, and authorized-override validation scenarios |
+| [`.github/workflows/cost-gate.yml`](./.github/workflows/cost-gate.yml) | Pull-request cost evaluation and enforcement |
+| [`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml) | Build, scan, push, and GitOps image-tag update workflow |
+| [`monitoring/cost-dashboard.json`](./monitoring/cost-dashboard.json) | Grafana dashboard definition |
+| `backend/`, `frontend/` | Example GraphQL marketplace workload |
 
----
+## Cost-Aware GitOps Gate
 
-## 🏗️ Architecture
+### Gate flow
 
-```
-                +---------------------+
-                |   Next.js 15 (SSR)  |  :3000
-                |  Tailwind + Apollo  |
-                +--------+------------+
-                         | GraphQL
-                +--------v------------+
-                |  Express + Apollo   |  :4000
-                |   Server 4 (Node)   |
-                +---+----------+------+
-                    |          |
-         +----------v--+    +--v-------+
-         | PostgreSQL  |    |  Redis   |
-         |     16      |    |  Cache   |
-         +-------------+    +----------+
-```
-
-### Repository Structure
-
-```
-agromart/
-├── frontend/          # Next.js 15 — App Router, TypeScript, Tailwind
-│   ├── app/           # Pages (file-based routing)
-│   ├── components/    # Shared UI components
-│   ├── lib/           # Apollo Client, utilities
-│   └── types/         # Shared TypeScript types
-├── backend/           # Node.js + Apollo GraphQL API
-│   ├── prisma/        # Schema, migrations, seed
-│   └── src/
-│       ├── schema/    # TypeDefs + resolvers
-│       ├── middleware/ # Auth (JWT)
-│       ├── payments/  # Razorpay integration
-│       ├── lib/       # Redis, Prisma clients
-│       └── metrics.ts # Prometheus metrics
-├── infra/             # Terraform: EKS, RDS, ElastiCache, ECR
-├── gitops/            # Kubernetes manifests + ArgoCD CRs
-└── docker-compose.yml # Local dev — all services
+```mermaid
+flowchart LR
+    PR[Developer PR] --> CI[GitHub Actions cost-gate.yml]
+    CI --> Ingest[AWS Cost Explorer<br/>scripts/cost_ingest.py]
+    CI --> Estimate[GitOps estimator<br/>scripts/cost_estimator.py]
+    Ingest --> Evaluation[data/cost_evaluation.json]
+    Estimate --> Evaluation
+    Evaluation --> OPA[OPA / Conftest<br/>policy/cost_gate.rego]
+    OPA -->|Budget or resource ceiling exceeded| Block[❌ Block PR + report]
+    OPA -->|Within policy| Pass[✅ Allow merge]
+    Pass --> Argo[Argo CD reconciliation]
+    Argo --> EKS[Amazon EKS]
 ```
 
----
+### Policy inputs and decisions
 
-## 🚀 Quick Start
+[`gitops/budgets.yaml`](./gitops/budgets.yaml) defines per-namespace:
 
-### Prerequisites
+- monthly budget in USD;
+- warning threshold percentage;
+- maximum requested CPU cores; and
+- maximum requested memory in GiB.
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) v2+
-- [Node.js](https://nodejs.org/) 20.x
-- [Razorpay test account](https://dashboard.razorpay.com/) (free)
+The estimator scans `Deployment` resources under `gitops/`, multiplies
+container resource requests by replica count, and applies the reference rates
+defined in [`scripts/cost_estimator.py`](./scripts/cost_estimator.py):
 
-### 1. Start Infrastructure
+```text
+projected monthly workload cost =
+    requested CPU cores × CPU monthly rate
+  + requested memory GiB × memory monthly rate
+```
+
+The policy denies a change when projected spend exceeds the namespace budget,
+CPU exceeds its ceiling, or memory exceeds its ceiling. It emits a warning at
+the configured threshold. An explicit `override: true` evaluation input is
+supported for an authorized exception and should be used only through an
+auditable review process.
+
+### Run the gate locally
+
+Requirements: Python 3.11+, PyYAML, and Conftest. AWS credentials are only
+needed when querying real Cost Explorer data; local validation uses mock data.
 
 ```bash
-docker compose up postgres redis -d
+python -m pip install pyyaml boto3
+
+# Generate deterministic local month-to-date spend
+python scripts/cost_ingest.py --mock
+
+# Evaluate resource requests in gitops/ against namespace budgets
+python scripts/cost_estimator.py
+
+# Run OPA policy checks
+conftest test data/cost_evaluation.json --policy policy/
+
+# Validate PASS, DENY, and authorized override scenarios
+python scripts/test_cost_gate.py
 ```
 
-### 2. Set Up Backend
+To query AWS Cost Explorer instead of mock data:
 
 ```bash
-cd backend
-npm install
-cp .env.example .env          # fill in your values (see .env.example)
-npx prisma migrate dev --name init
-npx prisma generate
-npx prisma db seed             # loads 3 users + 15 products
+python scripts/cost_ingest.py --region us-east-1
 ```
 
-### 3. Set Up Frontend
+The generated `data/` files are evaluation artifacts and should not contain
+credentials or be treated as Terraform state.
 
-```bash
-cd ../frontend
-npm install
-cp .env.local.example .env.local   # fill in NEXT_PUBLIC_GRAPHQL_URL
-```
+## CI/CD and GitOps operations
 
-### 4. Run Dev Servers
+### Cost gate
 
-```bash
-# Terminal 1 — backend (hot-reload on :4000)
-cd backend && npm run dev
+[`cost-gate.yml`](./.github/workflows/cost-gate.yml) runs for pull requests
+that change `gitops/` or `policy/`. It:
 
-# Terminal 2 — frontend (hot-reload on :3000)
-cd frontend && npm run dev
-```
+- checks out the proposed revision;
+- ingests spend (mock mode in the current workflow);
+- estimates projected cost;
+- evaluates `policy/cost_gate.rego` with Conftest;
+- posts a namespace-by-namespace report on the PR; and
+- fails the check when the overall status is `DENY`.
 
-### 5. Verify Everything Is Working
+### Image delivery
 
-```bash
-curl http://localhost:4000/health    # {"status":"ok"}
-curl http://localhost:4000/ready     # {"status":"ready"}
-curl http://localhost:4000/metrics   # Prometheus text format
-open http://localhost:3000           # AgroMart UI
-open http://localhost:4000/graphql   # Apollo Sandbox
-```
+[`deploy.yml`](./.github/workflows/deploy.yml) runs when `backend/` or
+`frontend/` changes on `main`. It authenticates with AWS OIDC, builds both
+images, scans them with Trivy, pushes them to ECR, and commits immutable
+GitHub-SHA image tags into `gitops/`. Argo CD then observes the manifest
+commit and performs the deployment.
 
----
+### Argo CD
 
-## 🐳 Run With Docker Compose
+The Argo CD application definition is
+[`gitops/argocd-app.yaml`](./gitops/argocd-app.yaml). Workloads must include
+CPU and memory requests because the cost estimator uses those requests as its
+cost-allocation input.
 
-```bash
-docker compose up --build     # first time (builds images)
-docker compose up -d          # subsequent runs (detached)
-docker compose down           # stop everything
-```
+## Provisioning the AWS foundation
 
----
-
-## ⚙️ Environment Variables
-
-### Backend (`backend/.env`)
-
-| Variable | Description | Example |
-|---|---|---|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@localhost:5432/agromart` |
-| `REDIS_URL` | Redis / Upstash URL | `rediss://...@upstash.io:6379` |
-| `JWT_SECRET` | Secret for signing JWTs | `super-secret-key` |
-| `RAZORPAY_KEY_ID` | Razorpay public key | `rzp_test_xxxx` |
-| `RAZORPAY_KEY_SECRET` | Razorpay secret (**never expose**) | `your_secret` |
-| `PORT` | Server port | `4000` |
-
-### Frontend (`frontend/.env.local`)
-
-| Variable | Description | Example |
-|---|---|---|
-| `NEXT_PUBLIC_GRAPHQL_URL` | Backend GraphQL endpoint | `http://localhost:4000/graphql` |
-| `NEXT_PUBLIC_RAZORPAY_KEY_ID` | Razorpay public key only | `rzp_test_xxxx` |
-
----
-
-## 🗄️ Database
-
-### Models
-
-| Model | Purpose |
-|---|---|
-| `User` | Buyers, sellers, or both |
-| `Product` | Crops, fertilizers, equipment |
-| `Order` | Links buyer → product, tracks status and rental dates |
-| `Payment` | Razorpay records linked to orders |
-| `Review` | One per user per product (post-delivery only) |
-
-### Seed Data (loaded by `prisma db seed`)
-
-| Email | Password | Role |
-|---|---|---|
-| `buyer@agromart.com` | `Password123!` | BUYER |
-| `seller@agromart.com` | `Password123!` | SELLER |
-| `both@agromart.com` | `Password123!` | BOTH |
-
-15 products are created: 6 crops, 5 fertilizers, 4 equipment (2 rentals).
-
-### Migrations
-
-```bash
-# Create a named migration after schema changes
-npx prisma migrate dev --name <descriptive-name>
-
-# Regenerate the Prisma client
-npx prisma generate
-```
-
-> ⚠️ Never use `prisma db push` in production. Never edit migration files after committing them.
-
----
-
-## 🔴 Redis Caching
-
-All product reads use the **cache-aside** pattern:
-
-| Cache Key | TTL | Data |
-|---|---|---|
-| `products:{category}:{page}` | 120s | Product list |
-| `product:{id}` | 300s | Single product |
-| `products:featured` | 600s | Featured listings |
-| `session:{userId}` | 7 days | Auth session |
-
-Cache is **invalidated automatically** on create/update/delete mutations.
-
----
-
-## 💳 Payment Flow (Razorpay)
-
-```
-1. createPaymentOrder  →  backend calls Razorpay API  →  DB status = CREATED
-2. Razorpay modal      →  handled entirely in frontend
-3. verifyPayment       →  frontend sends signature  →  backend verifies HMAC-SHA256  →  DB status = SUCCESS
-```
-
-**Test card:** `4111 1111 1111 1111` · Exp: `12/26` · CVV: `123` · OTP: `1234`
-
----
-
-## 📊 Observability
-
-The backend exposes these Prometheus metrics at `GET /metrics`:
-
-| Metric | Type |
-|---|---|
-| `http_requests_total` | Counter |
-| `http_request_duration_seconds` | Histogram |
-| `http_requests_errors_total` | Counter (watched by Self-Healing alert) |
-
-Health and readiness probes (used by Kubernetes):
-
-```bash
-GET /health   →  200 { "status": "ok" }
-GET /ready    →  200 { "status": "ready" } | 503
-```
-
----
-
-## ☁️ AWS Infrastructure (Terraform)
-
-All resources live in `infra/`:
-
-- **EKS** — managed Kubernetes cluster
-- **RDS PostgreSQL 16** — managed database
-- **ElastiCache Redis** — managed cache
-- **ECR** — private container registry
+The Terraform root in [`infra/`](./infra/) provisions the AWS platform. Start
+with the example variable file and supply environment-specific values without
+committing secrets:
 
 ```bash
 cd infra
 terraform init
+terraform validate
 terraform plan -var-file=terraform.tfvars
 terraform apply -var-file=terraform.tfvars
 ```
 
-> State is stored in S3 with DynamoDB locking. Never commit `*.tfstate` files.
+Review the Terraform outputs before configuring `kubectl` and Argo CD. Keep
+Terraform state in the configured remote backend and never commit `*.tfstate`
+or populated `*.tfvars` files.
 
----
+## Monitoring cost and workload health
 
-## 🚢 GitOps (ArgoCD)
-
-Kubernetes manifests live in `gitops/`. ArgoCD watches this directory and syncs changes to the EKS cluster.
-
-All `Deployment` manifests include resource requests/limits (required by the Cost Gate CI):
-
-```yaml
-resources:
-  requests:
-    cpu: "250m"
-    memory: "256Mi"
-  limits:
-    cpu: "500m"
-    memory: "512Mi"
-```
-
----
-
-## 🧱 Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 15, TypeScript 5, Tailwind CSS 3 |
-| GraphQL Client | Apollo Client 3 |
-| Backend | Express 4, Apollo Server 4, TypeScript |
-| ORM | Prisma 5 |
-| Database | PostgreSQL 16 |
-| Cache | Redis 7 (ioredis 5) |
-| Auth | JWT (jsonwebtoken 9) |
-| Payments | Razorpay Node SDK 2 |
-| Metrics | prom-client 15 |
-| IaC | Terraform 1.9 |
-| Container | Docker + Docker Compose |
-| Orchestration | Kubernetes (EKS via ArgoCD) |
-
----
-
-## 📝 Git Conventions
-
-### Commit Format
-
-```
-<type>(<scope>): <short description>
-
-Types : feat | fix | chore | docs | refactor | test
-Scopes: frontend | backend | infra | gitops
-```
-
-### Branch Naming
-
-```
-feature/<short-description>   e.g. feature/product-search
-fix/<short-description>       e.g. fix/payment-webhook-signature
-```
-
----
-
-## ✅ Pre-Commit Checklist
+Run the exporter after producing `data/cost_evaluation.json`:
 
 ```bash
-# TypeScript — backend
-cd backend && npx tsc --noEmit
-
-# Prisma schema validity
-cd backend && npx prisma validate
-
-# TypeScript — frontend
-cd frontend && npx tsc --noEmit
-
-# Full stack smoke test
-docker compose up --build -d
-curl http://localhost:4000/health   # must return 200
-curl http://localhost:3000          # must return 200
-docker compose down
+python scripts/cost_exporter.py
 ```
 
----
+It exposes `/metrics` and `/health` on port `9102`, including current spend,
+projected spend, budget limits, allocated CPU/memory, and gate status. Import
+[`monitoring/cost-dashboard.json`](./monitoring/cost-dashboard.json) into
+Grafana and scrape `http://localhost:9102/metrics` from Prometheus.
 
-## 💰 Cost-Aware GitOps Gate (Shift-Left FinOps)
+The example backend also exposes `/health`, `/ready`, and `/metrics` for
+Kubernetes probes and application telemetry.
 
-Standard GitOps engines (ArgoCD/Flux) blindly synchronize whatever is committed to Git with zero awareness of cloud spend. Teams typically discover budget overruns *after* the AWS bill arrives. 
+## Workload smoke test
 
-This project implements a **Cost-Aware GitOps Gate**: an automated policy layer that estimates the financial impact of proposed Kubernetes resource changes **before** code is merged and synchronized to Amazon EKS.
-
-### 🏛️ Architecture & Flow
-
-```mermaid
-flowchart LR
-    PR[Developer PR] --> CI[GitHub Actions Gate]
-    CI --> CE[AWS Cost Ingestion\nscripts/cost_ingest.py]
-    CI --> Est[Cost Estimator\nscripts/cost_estimator.py]
-    CE & Est --> OPA[OPA / Conftest Policy\npolicy/cost_gate.rego]
-    OPA -->|Exceeds Budget| Block[❌ PR Blocked / Comment Posted]
-    OPA -->|Within Budget| Pass[✅ PR Approved / Merged]
-    Pass --> ArgoCD[ArgoCD GitOps Sync]
-    ArgoCD --> EKS[Amazon EKS Cluster]
-```
-
-### 🎯 Why Gate at CI Time?
-1. **Prevention vs. Remediation:** Catching cost spikes *before* deployment prevents cloud bills from being incurred, rather than reacting to alerts days later.
-2. **Transparent Accountability:** Developers immediately see the monthly dollar impact of replica, CPU, and RAM changes directly on their Pull Request.
-3. **Guardrails Without Bottlenecks:** Hard budgets are strictly enforced by code, but legitimate architectural expansions can use the auditable exception path.
-
-### 🧪 Running the Gate Locally
+The application is intentionally secondary to the platform, but can be run
+locally when validating the deployment path:
 
 ```bash
-# 1. Ingest actual month-to-date AWS spend
-python3 scripts/cost_ingest.py --mock
-
-# 2. Estimate projected monthly cost from gitops manifests
-python3 scripts/cost_estimator.py
-
-# 3. Evaluate Open Policy Agent (OPA) rules
-conftest test data/cost_evaluation.json --policy policy/
-
-# 4. Run the full Phase 8 validation test suite
-python3 scripts/test_cost_gate.py
+docker compose up --build
+curl http://localhost:4000/health
+curl http://localhost:4000/ready
 ```
 
-### 📊 Observability (Prometheus & Grafana)
-Start the metrics exporter to feed live cost and budget metrics into Grafana:
-```bash
-python3 scripts/cost_exporter.py
-# Exposes Prometheus metrics on http://localhost:9102/metrics
-# Import monitoring/cost-dashboard.json into Grafana for real-time visualization.
-```
+For local application development, see the service-specific manifests and
+environment templates in [`backend/`](./backend/) and [`frontend/`](./frontend/).
+Do not commit `.env` files, payment secrets, database credentials, or AWS
+credentials.
 
----
+## Operational references
 
-<div align="center">
-
-Made with ❤️ for Indian farmers 🌾
-
-</div>
+- [`DEPLOYMENT_ISSUES_AND_ARCHITECTURE.md`](./DEPLOYMENT_ISSUES_AND_ARCHITECTURE.md)
+  contains the deployment retrospective and troubleshooting notes.
+- Kubernetes resource requests and replicas are the main cost-control levers.
+- Prefer changing budgets through reviewed policy changes rather than bypassing
+  the gate.
+- Investigate namespace cost warnings before they become hard budget denials.
